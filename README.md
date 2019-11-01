@@ -24,16 +24,16 @@ Your configuration file:
 app_dir: "/home/user/app"
 application:
     name: "MyApp"
-    config_file: "%APP_DIR%/app.conf"
 server:
-    root_url: "%SERVER.SCHEME%://%SERVER.DOMAIN%:%SERVER.PORT%/"
-    listen: "%SERVER.ADDR%:%SERVER.PORT%"
-    scheme: "http"
+    root_url: "%SERVER.PROTOCOL%://%SERVER.DOMAIN%:%SERVER.PORT%/"
+    adsr: "%SERVER.LISTEN%:%SERVER.PORT%"
     domain: "myapp.foo"
+    protocol: "http"
+    listen: "0.0.0.0"
     port: 80
-    addr: "0.0.0.0"
 database:
     file: "%APP_DIR%/db/app.db"
+    . . .
 ```
 
 Once resolved, becomes:
@@ -41,17 +41,17 @@ Once resolved, becomes:
 ```yaml
 app_dir: "/home/user/app"
 application:
-    name: MyApp
-    config_file: "/home/user/app/app.conf"
+    name: "MyApp"
 server:
     root_url: "http://myapp.foo:80/"
-    listen: "0.0.0.0:80"
-    scheme: "http"
+    adsr: "0.0.0.0:80"
     domain: "myapp.foo"
+    protocol: "http"
+    listen: "0.0.0.0"
     port: 80
-    addr: "0.0.0.0"
 database:
     file: "/home/user/app/db/app.db"
+    . . .
 ```
 
 By default variable delimiters are the percent (`%`) sign, but are completely customizable with the exception of periods (`.`), since Viper uses those to delimit child keys, and slashes (`/` and `\`), since distiguishing variables from paths would then be too difficult.
