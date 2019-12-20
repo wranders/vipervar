@@ -26,7 +26,7 @@ application:
     name: "MyApp"
 server:
     root_url: "%SERVER.PROTOCOL%://%SERVER.DOMAIN%:%SERVER.PORT%/"
-    adsr: "%SERVER.LISTEN%:%SERVER.PORT%"
+    addr: "%SERVER.LISTEN%:%SERVER.PORT%"
     domain: "myapp.foo"
     protocol: "http"
     listen: "0.0.0.0"
@@ -44,7 +44,7 @@ application:
     name: "MyApp"
 server:
     root_url: "http://myapp.foo:80/"
-    adsr: "0.0.0.0:80"
+    addr: "0.0.0.0:80"
     domain: "myapp.foo"
     protocol: "http"
     listen: "0.0.0.0"

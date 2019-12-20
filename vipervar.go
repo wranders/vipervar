@@ -59,7 +59,7 @@ func (r *Resolver) SetDelimiters(start string, end string) error {
 	r.startDelimiter = start
 	r.endDelimiter = end
 
-	exp := fmt.Sprintf("%s([a-zA-Z_.]*?)%s", sd, ed)
+	exp := fmt.Sprintf("%s([A-Za-z-._]+)%s", sd, ed)
 	r.regex = regexp.MustCompile(exp)
 
 	return nil
