@@ -10,7 +10,7 @@ import (
 )
 
 var specialCharacters = []string{
-	`%`, `^`, `$`, `?`, `*`, `+`, `[`, `]`, `(`, `)`,
+	`%`, `^`, `$`, `?`, `*`, `+`, `[`, `]`, `(`, `)`, `|`,
 }
 
 // Periods are considered illegal since Viper uses them internally
