@@ -38,15 +38,11 @@ func (r *Resolver) ResolveKeyIn(key string, useViper *viper.Viper) (string, erro
 	if err := r.validateSettings(); err != nil {
 		return "", err
 	}
-	k := useViper.Get(key)
-	if k == nil {
-		return "", &ErrNonExistentKey{key}
+	kv, err := getStringValueFromViperKey(key, useViper)
+	if err != nil {
+		return kv, err
 	}
-	kv, ok := k.(string)
-	if !ok {
-		return kv, &ErrUnsupportedVariableType{key, k}
-	}
-	out, err := r.ResolveValueWith(kv, useViper)
+	out, err := r.valueResolve(kv, useViper)
 	if err != nil {
 		return out, err
 	}
@@ -64,23 +60,9 @@ func (r *Resolver) ResolveValueWith(value string, useViper *viper.Viper) (string
 	if err := r.validateSettings(); err != nil {
 		return "", err
 	}
-	ok, vars, err := r.containsVariables(value)
+	out, err := r.valueResolve(value, useViper)
 	if err != nil {
-		return "", err
-	}
-	if !ok {
-		return value, nil
-	}
-	// Verify all variables are resolvable before making changes
-	err = checkVariableReference(useViper, vars)
-	if err != nil {
-		return "", err
-	}
-	out := value
-	for _, v := range vars {
-		viperVal := useViper.Get(v)
-		delimVar := fmt.Sprintf("%s%s%s", r.DelimStart, v, r.DelimEnd)
-		out = strings.Replace(out, delimVar, cast.ToString(viperVal), -1)
+		return value, err
 	}
 	return out, nil
 }
@@ -96,7 +78,11 @@ func (r *Resolver) ResolveReplaceKeyIn(key string, useViper *viper.Viper) error 
 	if err := r.validateSettings(); err != nil {
 		return err
 	}
-	val, err := r.ResolveKeyIn(key, useViper)
+	kv, err := getStringValueFromViperKey(key, useViper)
+	if err != nil {
+		return err
+	}
+	val, err := r.valueResolve(kv, useViper)
 	if err != nil {
 		return err
 	}
@@ -127,7 +113,14 @@ func (r *Resolver) ResolveReplaceAllIn(useViper *viper.Viper) error {
 		if excluded {
 			continue
 		}
-		value, err := r.ResolveKeyIn(key, useViper)
+		kv, err := getStringValueFromViperKey(key, useViper)
+		if err != nil {
+			if _, ok := err.(*ErrUnsupportedVariableType); ok {
+				continue
+			}
+			return err
+		}
+		value, err := r.valueResolve(kv, useViper)
 		if err != nil {
 			if _, ok := err.(*ErrUnsupportedVariableType); ok {
 				continue
@@ -165,6 +158,27 @@ func (r *Resolver) validateSettings() error {
 		return &ErrInvalidDelimiter{"key", "empty"}
 	}
 	return nil
+}
+
+func (r *Resolver) valueResolve(value string, useViper *viper.Viper) (string, error) {
+	ok, vars, err := r.containsVariables(value)
+	if err != nil {
+		return value, err
+	}
+	if !ok {
+		return value, nil
+	}
+	err = checkVariableReference(useViper, vars)
+	if err != nil {
+		return "", err
+	}
+	out := value
+	for _, v := range vars {
+		viperVal := useViper.Get(v)
+		delimVar := fmt.Sprintf("%s%s%s", r.DelimStart, v, r.DelimEnd)
+		out = strings.Replace(out, delimVar, cast.ToString(viperVal), -1)
+	}
+	return out, nil
 }
 
 func (r *Resolver) verifyRegex() error {
@@ -217,6 +231,18 @@ func (r *Resolver) verifyRegex() error {
 		r.recompile = false
 	}
 	return nil
+}
+
+func getStringValueFromViperKey(key string, useViper *viper.Viper) (string, error) {
+	k := useViper.Get(key)
+	if k == nil {
+		return key, &ErrNonExistentKey{key}
+	}
+	kv, ok := k.(string)
+	if !ok {
+		return kv, &ErrUnsupportedVariableType{key, k}
+	}
+	return kv, nil
 }
 
 func removeDuplicateBytes(byteSlice []byte) []byte {
