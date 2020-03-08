@@ -1,168 +1,80 @@
 package vipervar
 
-import (
-	"errors"
-	"fmt"
-	"regexp"
-	"strings"
+import "github.com/spf13/viper"
 
-	"github.com/spf13/viper"
+const (
+	defaultDelimStart string = `$(`
+	defaultDelimEnd   string = `)`
+	defaultDelimKey   string = `.`
 )
 
-var specialCharacters = []string{
-	`%`, `^`, `$`, `?`, `*`, `+`, `[`, `]`, `(`, `)`, `|`,
+var defaultResolver *Resolver
+
+func init() {
+	defaultResolver = New()
 }
 
-// Periods are considered illegal since Viper uses them internally
-// to delimit key children
-// Forward and backward slashes are considered illegal since they
-// are used in paths
-var illegalCharacters = []string{
-	`.`, `/`, `\`,
+func New() *Resolver {
+	r := new(Resolver)
+	r.DelimStart = defaultDelimStart
+	r.DelimEnd = defaultDelimEnd
+	r.DelimKey = defaultDelimKey
+	r.KeySpecialCharacters = []string{`_`, `-`}
+	return r
 }
 
-// Resolver contains the settings used to resolve variables in a
-// Viper configuration
-type Resolver struct {
-	ExcludeKeys []string
-
-	viper          *viper.Viper
-	regex          *regexp.Regexp
-	startDelimiter string
-	endDelimiter   string
+func Reset() {
+	defaultResolver = New()
 }
 
-// NewResolver uses the default Viper configuration
-func NewResolver() Resolver {
-	return Resolver{
-		viper: viper.GetViper(),
-	}
+func SetDelimStart(delim string) {
+	defaultResolver.DelimStart = delim
 }
 
-// NewResolverFrom uses the specified Viper configuration
-func NewResolverFrom(v *viper.Viper) Resolver {
-	return Resolver{
-		viper: v,
-	}
+func SetDelimEnd(delim string) {
+	defaultResolver.DelimEnd = delim
 }
 
-// SetDelimiters specifies the strings that mark the beginning and end of a variable
-func (r *Resolver) SetDelimiters(start string, end string) error {
-	sd, err := validateDelimiter(start)
-	if err != nil {
-		return err
-	}
-	ed, err := validateDelimiter(end)
-	if err != nil {
-		return err
-	}
-	r.startDelimiter = start
-	r.endDelimiter = end
-
-	exp := fmt.Sprintf("%s([A-Za-z-._]+)%s", sd, ed)
-	r.regex = regexp.MustCompile(exp)
-
-	return nil
+func SetDelimKey(delim string) {
+	defaultResolver.DelimKey = delim
 }
 
-// Resolve validates all non-excluded configuration keys and replaces them with
-// their specified values.
-// If no delimiters are specified, the default is `%` for both start and end
-// (ie. `%SOME_VAR%`)
-func (r *Resolver) Resolve() error {
-	if r.regex == nil {
-		r.SetDelimiters(`%`, `%`)
-	}
-
-	var errs []string
-	queue := make(map[string][]string)
-
-	for _, key := range r.viper.AllKeys() {
-		// If key is excluded, skip it
-		if isIn(key, r.ExcludeKeys) {
-			continue
-		}
-
-		// Only work with string valued keys
-		var strValue string
-		value := r.viper.Get(key)
-		if val, ok := value.(string); !ok {
-			continue
-		} else {
-			strValue = val
-		}
-
-		// Find all variables in string key
-		match := r.regex.FindAllStringSubmatch(strValue, -1)
-		vars := make([]string, len(match))
-		for i, group := range match {
-			vars[i] = group[1]
-		}
-		if len(vars) <= 0 {
-			// No variables found, skip key
-			continue
-		}
-		for _, v := range vars {
-			if ok := r.viper.IsSet(v); !ok {
-				msg := fmt.Sprintf(
-					"Configuration variable `%s` references a non-existent value",
-					v,
-				)
-				errs = append(errs, msg)
-			}
-		}
-		queue[key] = vars
-	}
-
-	// If any errors were found, return them so no changes are made
-	if len(errs) > 0 {
-		errsStr := strings.Join(errs[:], "\n")
-		return fmt.Errorf(
-			"Errors were found in the specified configuration, no changes were made\n%s",
-			errsStr,
-		)
-	}
-
-	// Configuration variables are valid, commit the changes
-	for key, vars := range queue {
-		for _, v := range vars {
-			k := r.viper.GetString(key)
-			ref := r.viper.GetString(v)
-			delimvar := fmt.Sprintf(
-				"%s%s%s",
-				r.startDelimiter,
-				v,
-				r.endDelimiter,
-			)
-			replaced := strings.Replace(k, delimvar, ref, -1)
-			r.viper.Set(key, replaced)
-		}
-	}
-
-	return nil
+func SetKeySpecialCharacters(chars []string) {
+	defaultResolver.KeySpecialCharacters = chars
 }
 
-func validateDelimiter(delim string) (vdelim string, err error) {
-	for _, c := range strings.Split(delim, "") {
-		if isIn(c, illegalCharacters) {
-			msg := fmt.Sprintf("Delimeter `%s` contains illegal character: `%s`", delim, c)
-			err = errors.New(msg)
-			return
-		}
-		if isIn(c, specialCharacters) {
-			vdelim = vdelim + `\` + c
-		} else {
-			vdelim = vdelim + c
-		}
-	}
-	return
+func SetExcludedKeys(keys []string) {
+	defaultResolver.ExcludeKeys = keys
 }
 
-func isIn(key string, stringslice []string) bool {
-	for _, value := range stringslice {
-		if key == value {
-			return true
-		}
-	}
-	return false
+func Resolve(key string) (string, error) {
+	return defaultResolver.Resolve(key)
+}
+
+func ResolveIn(useViper *viper.Viper, key string) (string, error) {
+	return defaultResolver.ResolveIn(useViper, key)
+}
+
+func ResolveValue(value string) (string, error) {
+	return defaultResolver.ResolveValue(value)
+}
+
+func ResolveValueIn(useViper *viper.Viper, value string) (string, error) {
+	return defaultResolver.ResolveValueIn(useViper, value)
+}
+
+func ResolveReplace(key string) error {
+	return defaultResolver.ResolveReplace(key)
+}
+
+func ResolveReplaceIn(useViper *viper.Viper, key string) error {
+	return defaultResolver.ResolveReplaceIn(useViper, key)
+}
+
+func ResolveReplaceAll() error {
+	return defaultResolver.ResolveReplaceAll()
+}
+
+func ResolveReplaceAllIn(useViper *viper.Viper) error {
+	return defaultResolver.ResolveReplaceAllIn(useViper)
 }
