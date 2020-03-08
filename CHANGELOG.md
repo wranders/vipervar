@@ -11,28 +11,31 @@ All notable changes to this project will be documented in this file.
   - `DelimEnd` - Delimiter marking the end of a variable field (default: `)`)
   - `DelimKey` - Delimiter used by Viper to denote subkeys (default: `.`)
   - `KeySpecialCharacters` - Non-alphanumeric characters used in variables (default: `_` & `-`)
-- New functions to manipulate the default package-level `Resolver`:
+  - `ExcludeKeys` - Keys to ignore with `Resolver.ResolveReplaceAll` and `Resolver.ResolveReplaceAllIn`
+- New functions for the default package-level `Resolver`:
   - Function `New() *Resolver`
   - Function `Reset()`
   - Function `SetDelimStart(string)`
   - Function `SetDelimEnd(string)`
+  - Function `SetDelimStartEnd(string, string)`
   - Function `SetDelimKey(string)`
-  - Function `SetKeySpecialCharacters([]string)`
+  - Function `SetKeySpecialCharacters([]byte)`
   - Function `SetExcludedKeys([]string)`
-  - Function `Resolve(string) (string, error)`
-  - Function `ResolveIn(*viper.Viper, string) (string, error)`
+  - Function `ResolveKey(string) (string, error)`
+  - Function `ResolveKeyIn(string, *viper.Viper) (string, error)`
   - Function `ResolveValue(string) (string, error)`
-  - Function `ResolveValueIn(*viper.Viper, string) (string, error)`
-  - Function `ResolveReplace(string) error`
-  - Function `ResolveReplaceIn(*viper.Viper, string) error`
+  - Function `ResolveValueWith(string, *viper.Viper) (string, error)`
+  - Function `ResolveReplaceKey(string) error`
+  - Function `ResolveReplaceKeyIn(string, *viper.Viper) error`
   - Function `ResolveReplaceAll() error`
   - Function `ResolveReplaceAllIn(*viper.Viper) error`
 - New `Resolver` methods for more granular control
-  - Method `Resolver.ResolveIn(*viper.Viper, string) (string, error)`
+  - Method `Resolver.ResolveKey(string) (string, error)`
+  - Method `Resolver.ResolveKeyIn(string, *viper.Viper) (string, error)`
   - Method `Resolver.ResolveValue(string) (string, error)`
-  - Method `Resolver.ResolveValueIn(*viper.Viper, string) (string, error)`
-  - Method `Resolver.ResolveReplace(string) error`
-  - Method `Resolver.ResolveReplaceIn(*viper.Viper, string) error`
+  - Method `Resolver.ResolveValueWith(string, *viper.Viper) (string, error)`
+  - Method `Resolver.ResolveReplaceKey(string) error`
+  - Method `Resolver.ResolveReplaceKeyIn(string, *viper.Viper) error`
   - Method `Resolver.ResolveReplaceAll() error`
   - Method `Resolver.ResolveReplaceAllIn(*viper.Viper) error`
 - Package-specific error types
@@ -41,15 +44,9 @@ All notable changes to this project will be documented in this file.
   - `ErrUnsupportedVariableType` - Applies to variables referencing maps and slices
   - `ErrNonExistentKey` - Viper key does not exist
 
-### Changed
-
-- Method `Resolver.Resolve() error` -> `Resolver.Resolve(string) (string, error)`
-- Viper configurations are decoupled from the `Resolver`
-  - `Resolve*` functions/methods ending in `*In` use the specified Viper configuration
-  - `Resolve*` functions/methods not ending in `*In` use the default package-level Viper
-
 ### Removed
 
 - Function `NewResolver`
 - Function `NewResolverFrom`
 - Method `Resolver.SetDelimiters`
+- Method `Resolver.Resolve`

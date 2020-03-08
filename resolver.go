@@ -1,6 +1,7 @@
 package vipervar
 
 import (
+	"bytes"
 	"fmt"
 	"regexp"
 	"strings"
@@ -9,11 +10,13 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Resolver contains settings and methods for resolving varaibles in
+// Viper configurations
 type Resolver struct {
 	DelimStart           string
 	DelimEnd             string
 	DelimKey             string
-	KeySpecialCharacters []string
+	KeySpecialCharacters []byte
 	ExcludeKeys          []string
 
 	regex                   *regexp.Regexp
@@ -21,15 +24,17 @@ type Resolver struct {
 	oldDelimStart           string
 	oldDelimEnd             string
 	oldDelimKey             string
-	oldKeySpecialCharacters []string
+	oldKeySpecialCharacters []byte
 }
 
-func (r *Resolver) Resolve(key string) (string, error) {
+// ResolveKey in the default Viper
+func (r *Resolver) ResolveKey(key string) (string, error) {
 	defaultViper := viper.GetViper()
-	return r.ResolveIn(defaultViper, key)
+	return r.ResolveKeyIn(key, defaultViper)
 }
 
-func (r *Resolver) ResolveIn(useViper *viper.Viper, key string) (string, error) {
+// ResolveKeyIn the specified Viper
+func (r *Resolver) ResolveKeyIn(key string, useViper *viper.Viper) (string, error) {
 	if err := r.validateSettings(); err != nil {
 		return "", err
 	}
@@ -41,19 +46,21 @@ func (r *Resolver) ResolveIn(useViper *viper.Viper, key string) (string, error) 
 	if !ok {
 		return kv, &ErrUnsupportedVariableType{key, k}
 	}
-	out, err := r.ResolveValueIn(useViper, kv)
+	out, err := r.ResolveValueWith(kv, useViper)
 	if err != nil {
 		return out, err
 	}
 	return out, nil
 }
 
+// ResolveValue with the default Viper
 func (r *Resolver) ResolveValue(value string) (string, error) {
 	defaultViper := viper.GetViper()
-	return r.ResolveValueIn(defaultViper, value)
+	return r.ResolveValueWith(value, defaultViper)
 }
 
-func (r *Resolver) ResolveValueIn(useViper *viper.Viper, value string) (string, error) {
+// ResolveValueWith the specified Viper
+func (r *Resolver) ResolveValueWith(value string, useViper *viper.Viper) (string, error) {
 	if err := r.validateSettings(); err != nil {
 		return "", err
 	}
@@ -64,32 +71,32 @@ func (r *Resolver) ResolveValueIn(useViper *viper.Viper, value string) (string, 
 	if !ok {
 		return value, nil
 	}
+	// Verify all variables are resolvable before making changes
+	err = checkVariableReference(useViper, vars)
+	if err != nil {
+		return "", err
+	}
 	out := value
 	for _, v := range vars {
 		viperVal := useViper.Get(v)
-		if viperVal == nil {
-			return value, &ErrNonExistentVariableReference{v}
-		}
-		switch viperVal.(type) {
-		case []int, []string, map[string]interface{}, map[string]string:
-			return out, &ErrUnsupportedVariableType{v, viperVal}
-		}
 		delimVar := fmt.Sprintf("%s%s%s", r.DelimStart, v, r.DelimEnd)
 		out = strings.Replace(out, delimVar, cast.ToString(viperVal), -1)
 	}
 	return out, nil
 }
 
-func (r *Resolver) ResolveReplace(key string) error {
+// ResolveReplaceKey in the default Viper
+func (r *Resolver) ResolveReplaceKey(key string) error {
 	defaultViper := viper.GetViper()
-	return r.ResolveReplaceIn(defaultViper, key)
+	return r.ResolveReplaceKeyIn(key, defaultViper)
 }
 
-func (r *Resolver) ResolveReplaceIn(useViper *viper.Viper, key string) error {
+// ResolveReplaceKeyIn the specified Viper
+func (r *Resolver) ResolveReplaceKeyIn(key string, useViper *viper.Viper) error {
 	if err := r.validateSettings(); err != nil {
 		return err
 	}
-	val, err := r.ResolveIn(useViper, key)
+	val, err := r.ResolveKeyIn(key, useViper)
 	if err != nil {
 		return err
 	}
@@ -97,11 +104,13 @@ func (r *Resolver) ResolveReplaceIn(useViper *viper.Viper, key string) error {
 	return nil
 }
 
+// ResolveReplaceAll values containting variables in the default Viper
 func (r *Resolver) ResolveReplaceAll() error {
 	defaultViper := viper.GetViper()
 	return r.ResolveReplaceAllIn(defaultViper)
 }
 
+// ResolveReplaceAllIn the specified Viper
 func (r *Resolver) ResolveReplaceAllIn(useViper *viper.Viper) error {
 	if err := r.validateSettings(); err != nil {
 		return err
@@ -118,7 +127,7 @@ func (r *Resolver) ResolveReplaceAllIn(useViper *viper.Viper) error {
 		if excluded {
 			continue
 		}
-		value, err := r.ResolveIn(useViper, key)
+		value, err := r.ResolveKeyIn(key, useViper)
 		if err != nil {
 			if _, ok := err.(*ErrUnsupportedVariableType); ok {
 				continue
@@ -178,32 +187,22 @@ func (r *Resolver) verifyRegex() error {
 		r.oldDelimKey = r.DelimKey
 		r.recompile = true
 	}
-	if len(r.KeySpecialCharacters) != len(r.oldKeySpecialCharacters) {
-		r.oldKeySpecialCharacters = r.KeySpecialCharacters
+	if !bytes.Equal(r.KeySpecialCharacters, r.oldKeySpecialCharacters) {
+		dedupedKSC := removeDuplicateBytes(r.KeySpecialCharacters)
+		r.KeySpecialCharacters = dedupedKSC
+		r.oldKeySpecialCharacters = dedupedKSC
 		r.recompile = true
-	}
-	for i, ksc := range r.KeySpecialCharacters {
-		if ksc != r.oldKeySpecialCharacters[i] {
-			r.oldKeySpecialCharacters = r.KeySpecialCharacters
-			r.recompile = true
-			break
-		}
 	}
 	if r.recompile {
 		start := regexp.QuoteMeta(r.DelimStart)
 		end := regexp.QuoteMeta(r.DelimEnd)
 		key := regexp.QuoteMeta(r.DelimKey)
-		keychars := make([]string, len(r.KeySpecialCharacters))
-		if len(r.KeySpecialCharacters) > 0 {
-			for i, c := range r.KeySpecialCharacters {
-				keychars[i] = regexp.QuoteMeta(c)
-			}
-		}
+		keychars := escapeBytesToString(r.KeySpecialCharacters)
 		expr := fmt.Sprintf(
-			"%s([A-Za-z0-9-%s%s]+)%s",
+			"%s([A-Za-z0-9%s%s]+)%s",
 			start,
 			key,
-			strings.Join(keychars, ""),
+			keychars,
 			end,
 		)
 		// All user definable inputs are sanitized, so unless
@@ -216,6 +215,41 @@ func (r *Resolver) verifyRegex() error {
 		}
 		r.regex = regexpr
 		r.recompile = false
+	}
+	return nil
+}
+
+func removeDuplicateBytes(byteSlice []byte) []byte {
+	keys := make(map[byte]bool)
+	out := []byte{}
+	for _, entry := range byteSlice {
+		if _, value := keys[entry]; !value {
+			keys[entry] = true
+			out = append(out, entry)
+		}
+	}
+	return out
+}
+
+func escapeBytesToString(byteSlice []byte) string {
+	var out strings.Builder
+	for _, b := range byteSlice {
+		out.WriteString(`\`)
+		out.WriteByte(b)
+	}
+	return out.String()
+}
+
+func checkVariableReference(useViper *viper.Viper, vars []string) error {
+	for _, v := range vars {
+		viperVal := useViper.Get(v)
+		if viperVal == nil {
+			return &ErrNonExistentVariableReference{v}
+		}
+		switch viperVal.(type) {
+		case []int, []string, map[string]interface{}, map[string]string:
+			return &ErrUnsupportedVariableType{v, viperVal}
+		}
 	}
 	return nil
 }
