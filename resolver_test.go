@@ -26,9 +26,11 @@ scref: $(sc/key)
 const (
 	applicationConfig string = "/home/user/app/config/app.conf"
 	serverRootURL     string = "http://vipervar.foo:8080/"
+	configDir         string = "/home/user/app/config"
+	serverDomain      string = "vipervar.foo"
 )
 
-func TestResolveDefaultOneKey(t *testing.T) {
+func TestResolver_DefaultOneKey(t *testing.T) {
 	viper.Reset()
 	viper.SetConfigType("yaml")
 	viper.ReadConfig(bytes.NewBuffer(config))
@@ -52,7 +54,7 @@ func TestResolveDefaultOneKey(t *testing.T) {
 	}
 }
 
-func TestResolveOneKey(t *testing.T) {
+func TestResolver_OneKey(t *testing.T) {
 	v := viper.New()
 	v.SetConfigType("yaml")
 	v.ReadConfig(bytes.NewBuffer(config))
@@ -76,7 +78,7 @@ func TestResolveOneKey(t *testing.T) {
 	}
 }
 
-func TestResolveDefaultOneValue(t *testing.T) {
+func TestResolver_DefaultOneValue(t *testing.T) {
 	viper.Reset()
 	viper.SetConfigType("yaml")
 	viper.ReadConfig(bytes.NewBuffer(config))
@@ -103,7 +105,7 @@ func TestResolveDefaultOneValue(t *testing.T) {
 	}
 }
 
-func TestResolveOneValue(t *testing.T) {
+func TestResolver_OneValue(t *testing.T) {
 	v := viper.New()
 	v.SetConfigType("yaml")
 	v.ReadConfig(bytes.NewBuffer(config))
@@ -130,7 +132,7 @@ func TestResolveOneValue(t *testing.T) {
 	}
 }
 
-func TestResolveReplaceDefaultOneKey(t *testing.T) {
+func TestResolver_ReplaceDefaultOneKey(t *testing.T) {
 	viper.Reset()
 	viper.SetConfigType("yaml")
 	viper.ReadConfig(bytes.NewBuffer(config))
@@ -155,7 +157,7 @@ func TestResolveReplaceDefaultOneKey(t *testing.T) {
 	}
 }
 
-func TestResolveReplaceOneKey(t *testing.T) {
+func TestResolver_ReplaceOneKey(t *testing.T) {
 	v := viper.New()
 	v.SetConfigType("yaml")
 	v.ReadConfig(bytes.NewBuffer(config))
@@ -180,7 +182,7 @@ func TestResolveReplaceOneKey(t *testing.T) {
 	}
 }
 
-func TestResolveReplaceAllDefault(t *testing.T) {
+func TestResolver_ReplaceAllDefault(t *testing.T) {
 	viper.Reset()
 	viper.SetConfigType("yaml")
 	viper.ReadConfig(bytes.NewBuffer(config))
@@ -206,7 +208,7 @@ func TestResolveReplaceAllDefault(t *testing.T) {
 	}
 }
 
-func TestResolverSettingErr(t *testing.T) {
+func TestResolverr_SettingErr(t *testing.T) {
 	viper.Reset()
 	viper.SetConfigType("yaml")
 	viper.ReadConfig(bytes.NewBuffer(config))
@@ -254,7 +256,7 @@ func TestResolverSettingErr(t *testing.T) {
 	Reset()
 }
 
-func TestChangeDelim(t *testing.T) {
+func TestResolver_ChangeDelim(t *testing.T) {
 	viper.Reset()
 	viper.SetConfigType("yaml")
 	viper.ReadConfig(bytes.NewBuffer(config))
@@ -273,8 +275,8 @@ func TestChangeDelim(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if v != "/home/user/app/config" {
-		t.Errorf("`application.config` does not match `/home/user/app/config`: `%s`", v)
+	if v != configDir {
+		t.Errorf("`application.config` does not match `%s`: `%s`", configDir, v)
 	}
 
 	vip := viper.NewWithOptions(viper.KeyDelimiter("::"))
@@ -287,8 +289,8 @@ func TestChangeDelim(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if v != "vipervar.foo" {
-		t.Errorf("`diff_domain` does not match `vipervar.foo`: `%s`", v)
+	if v != serverDomain {
+		t.Errorf("`diff_domain` does not match `%s`: `%s`", serverDomain, v)
 	}
 
 	SetKeySpecialCharacters([]byte{'_', '-', '/'})
